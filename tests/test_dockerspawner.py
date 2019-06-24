@@ -38,6 +38,33 @@ def test_start_stop(app):
 
 
 @pytest.mark.gen_test(timeout=90)
+def test_start_multiple_named(app, named_servers):
+    name = "has@"
+    add_user(app.db, app, name=name)
+    user = app.users[name]
+    assert isinstance(user.spawner, DockerSpawner)
+    token = user.new_api_token()
+    # start the server
+    r = yield api_request(app, "users", name, "servers", "server1", method="post")
+    while r.status_code == 202:
+        # request again
+        r = yield api_request(app, "users", name, "servers", "server1", method="post")
+        yield gen.sleep(0.1)
+    r = yield api_request(app, "users", name, "servers", "server2", method="post")
+    while r.status_code == 202:
+        # request again
+        r = yield api_request(app, "users", name, "servers", "server2", method="post")
+        yield gen.sleep(0.1)
+    assert r.status_code == 201, r.text
+    url = url_path_join(public_url(app, user), "api/status")
+    r = yield async_requests.get(url, headers={"Authorization": "token %s" % token})
+    assert r.url == url
+    r.raise_for_status()
+    print(r.text)
+    assert "kernels" in r.json()
+
+
+@pytest.mark.gen_test(timeout=90)
 @pytest.mark.parametrize("image", ["0.8", "0.9", "nomatch"])
 def test_image_whitelist(app, image):
     name = "checker"

@@ -24,6 +24,14 @@ def dockerspawner(app):
     with mock.patch.dict(app.tornado_settings, {"spawner_class": DockerSpawner}):
         yield
 
+@pytest.fixture
+def named_servers(app):
+    """Configure JupyterHub to allow named servers"""
+    # We have to set this configuration twice in a mocking context; the
+    # tornado_settings are copied
+    app.config.JupyterHub.allow_named_servers = True
+    with mock.patch.dict(app.tornado_settings, {"allow_named_servers": True}):
+        yield
 
 @pytest.fixture(autouse=True, scope="session")
 def docker():
